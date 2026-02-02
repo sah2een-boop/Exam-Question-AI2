@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>API 測試工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+
+        #result {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Google Apps Script API 測試</h1>
+    <p>API URL: <code id="apiUrl"></code></p>
+
+    <button onclick="testAPI()">測試 API 連線</button>
+    <button onclick="testDirect()">直接開啟 API (新分頁)</button>
+
+    <div id="result"></div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxNSQgNfQuClkxkrEDhZFcjJjLxWG2ExkXlZrabTHIYikxW9LVdq--ezEBhiiUqjFDP/exec';
+        document.getElementById('apiUrl').textContent = API_URL;
+
+        async function testAPI() {
+            const result = document.getElementById('result');
+            result.innerHTML = '正在測試...\n';
+
+            try {
+                const response = await fetch(`${API_URL}?action=getQuestions`);
+                result.innerHTML += `狀態碼: ${response.status}\n`;
+                result.innerHTML += `狀態文字: ${response.statusText}\n\n`;
+
+                const text = await response.text();
+                result.innerHTML += `回應內容 (前 500 字元):\n${text.substring(0, 500)}\n\n`;
+
+                try {
+                    const json = JSON.parse(text);
+                    result.innerHTML += `✅ JSON 解析成功！\n`;
+                    result.innerHTML += `題目數量: ${json.length}\n`;
+                    result.innerHTML += `第一題: ${JSON.stringify(json[0], null, 2)}`;
+                    result.className = 'success';
+                } catch (e) {
+                    result.innerHTML += `❌ JSON 解析失敗: ${e.message}\n`;
+                    result.className = 'error';
+                }
+            } catch (error) {
+                result.innerHTML += `❌ 連線失敗: ${error.message}\n`;
+                result.innerHTML += `\n這通常表示:\n`;
+                result.innerHTML += `1. CORS 設定錯誤 (部署時未選「所有人」)\n`;
+                result.innerHTML += `2. 網址錯誤\n`;
+                result.innerHTML += `3. Apps Script 未正確部署\n`;
+                result.className = 'error';
+            }
+        }
+
+        function testDirect() {
+            window.open(`${API_URL}?action=getQuestions`, '_blank');
+        }
+    </script>
+</body>
+
+</html>
