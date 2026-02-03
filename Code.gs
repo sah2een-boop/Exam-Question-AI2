@@ -42,8 +42,9 @@ function getQuestions(subject) {
     throw new Error('找不到科目：' + subject);
   }
   
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
+  const sheetData = sheet.getDataRange().getValues();
+  const sheetFormulas = sheet.getDataRange().getFormulas();
+  const headers = sheetData[0];
   
   const idxId = headers.indexOf('題號');
   const idxQ = headers.indexOf('題目');
@@ -53,15 +54,25 @@ function getQuestions(subject) {
   const idxD = headers.indexOf('D');
   const idxImg = headers.indexOf('圖片');
   
-  // Return all questions in original order (no shuffling)
-  const rows = data.slice(1);
-  
-  const questions = rows.map(function(row) {
+  const questions = sheetData.slice(1).map(function(row, i) {
+    let imageUrl = null;
+    if (idxImg > -1) {
+      const cellValue = row[idxImg];
+      const cellFormula = sheetFormulas[i + 1][idxImg];
+      
+      if (cellValue && String(cellValue).startsWith('http')) {
+        imageUrl = cellValue;
+      } else if (cellFormula && cellFormula.toUpperCase().includes('IMAGE')) {
+        const match = cellFormula.match(/"(.*?)"/);
+        if (match && match[1]) imageUrl = match[1];
+      }
+    }
+
     return {
       id: row[idxId],
       question: row[idxQ],
       options: [row[idxA], row[idxB], row[idxC], row[idxD]],
-      image: idxImg > -1 && row[idxImg] ? row[idxImg] : null
+      image: imageUrl
     };
   });
   
