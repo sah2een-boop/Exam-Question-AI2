@@ -44,7 +44,7 @@ function getQuestions(subject) {
   
   const sheetData = sheet.getDataRange().getValues();
   const sheetFormulas = sheet.getDataRange().getFormulas();
-  const headers = sheetData[0];
+  const headers = sheetData[0].map(function(h) { return String(h).trim(); });
   
   const idxId = headers.indexOf('題號');
   const idxQ = headers.indexOf('題目');
@@ -63,7 +63,7 @@ function getQuestions(subject) {
       if (cellValue && String(cellValue).startsWith('http')) {
         imageUrl = cellValue;
       } else if (cellFormula && cellFormula.toUpperCase().includes('IMAGE')) {
-        const match = cellFormula.match(/"(.*?)"/);
+        const match = cellFormula.match(/["'](.*?)["']/);
         if (match && match[1]) imageUrl = match[1];
       }
     }
@@ -90,7 +90,7 @@ function submitExam(data) {
   }
   
   const qData = qSheet.getDataRange().getValues();
-  const headers = qData[0];
+  const headers = qData[0].map(function(h) { return String(h).trim(); });
   const idxId = headers.indexOf('題號');
   const idxAns = headers.indexOf('解答');
   const idxQ = headers.indexOf('題目');
