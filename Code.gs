@@ -93,7 +93,7 @@ function submitExam(data) {
   
   let correctCount = 0;
   const wrongAnswers = [];
-  const totalQuestions = Object.keys(data.answers).length; // Dynamic based on submitted answers
+  const totalQuestions = qData.length - 1; // Use total questions in the sheet
   
   Object.keys(data.answers).forEach(function(qId) {
     if (data.answers[qId] === answerKey[qId]) {
@@ -113,7 +113,8 @@ function submitExam(data) {
   let userRowIndex = -1;
   
   for (let i = 1; i < aData.length; i++) {
-    if (String(aData[i][0]) === String(data.id)) {
+    // Check both Student ID (col 0) and Subject (col 7)
+    if (String(aData[i][0]) === String(data.id) && String(aData[i][7]) === String(subject)) {
       userRowIndex = i + 1;
       break;
     }
