@@ -3,7 +3,7 @@ import { Triangle, Circle, Square } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function QuestionMap({
-    totalQuestions,
+    questions,
     answers,
     flags,
     currentQuestionIndex,
@@ -13,10 +13,8 @@ export default function QuestionMap({
         <div className="bg-white rounded-xl shadow-md p-4">
             <h3 className="font-semibold text-gray-700 mb-4 border-b pb-2">題目總覽</h3>
             <div className="grid grid-cols-5 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-                {Array.from({ length: totalQuestions }).map((_, idx) => {
-                    // answers and flags are keyed by question ID, not index
-                    const questionId = idx + 1; // This assumes sequential IDs 1,2,3...
-                    // Better: pass questions array and use questions[idx].id
+                {questions.map((q, idx) => {
+                    const questionId = q.id;
                     const isAnswered = answers.hasOwnProperty(questionId);
                     const flag = flags[questionId];
                     const isCurrent = currentQuestionIndex === idx;

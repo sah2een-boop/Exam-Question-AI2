@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useExam } from '../context/ExamContext';
 import { fetchQuestions, submitExam } from '../services/api';
@@ -8,20 +8,44 @@ import { Clock, LayoutGrid, ArrowLeft } from 'lucide-react';
 import clsx from 'clsx';
 
 const SHUFFLE = import.meta.env.VITE_SHUFFLE_OPTIONS === 'true';
-const EXAM_DURATION_SEC = 60 * 60; // 1 Hour
 
 export default function Exam() {
     const { state, dispatch } = useExam();
     const navigate = useNavigate();
     const location = useLocation();
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(EXAM_DURATION_SEC);
+    const [timeLeft, setTimeLeft] = useState(0);
     const [showMap, setShowMap] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const hasWarned = useRef(false); // 是否已經警告過切換
 
-    // Initialize Exam
+    // 從 Home.jsx 傳入的考試時間（分鐘），預設 60
+    const duration = location.state?.duration || 60;
+    const EXAM_DURATION_SEC = duration * 60;
+
+    // ============================================================
+    // 提交試卷（用 useCallback 避免 stale closure）
+    // ============================================================
+    const handleSubmit = useCallback(() => {
+        if (state.status !== 'active') return;
+
+        const resultData = {
+            id: state.user.id,
+            name: state.user.name,
+            subject: state.user.subject,
+            answers: state.answers,
+            totalQuestions: state.questions.length,
+            timeLeft,
+            totalTimeTaken: EXAM_DURATION_SEC - timeLeft
+        };
+
+        navigate('/result', { state: { resultData } });
+    }, [state, timeLeft, EXAM_DURATION_SEC, navigate]);
+
+    // ============================================================
+    // 初始化考試
+    // ============================================================
     useEffect(() => {
-        // If no user data, redirect to home
         if (!location.state?.id || !location.state?.name) {
             navigate('/');
             return;
@@ -29,19 +53,26 @@ export default function Exam() {
 
         const initExam = async () => {
             try {
-                let questions = await fetchQuestions(location.state.subject);
+                const questionCount = location.state.questionCount || 0;
+                let questions = await fetchQuestions(location.state.subject, questionCount);
 
-                // Shuffle Options if enabled
+                // 打亂選項順序（建立映射表）
                 if (SHUFFLE) {
-                    questions = questions.map(q => ({
-                        ...q,
-                        options: [...q.options].sort(() => Math.random() - 0.5)
-                    }));
+                    questions = questions.map(q => {
+                        const indices = [0, 1, 2, 3];
+                        // Fisher-Yates 洗牌
+                        for (let i = indices.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [indices[i], indices[j]] = [indices[j], indices[i]];
+                        }
+                        return {
+                            ...q,
+                            options: indices.map(i => q.options[i]),
+                            // 映射：畫面上的位置 → 原始代號
+                            optionMap: indices.map(i => ['A', 'B', 'C', 'D'][i]),
+                        };
+                    });
                 }
-
-                // Shuffle Questions themselves? "隨機撈取 N 題" - GAS does this usually. 
-                // But if we want extra shuffle:
-                // questions.sort(() => Math.random() - 0.5);
 
                 dispatch({
                     type: 'START_EXAM',
@@ -50,7 +81,9 @@ export default function Exam() {
                         questions
                     }
                 });
+                setTimeLeft(EXAM_DURATION_SEC);
                 setIsLoading(false);
+                hasWarned.current = false;
             } catch (err) {
                 console.error("Failed to load exam", err);
                 alert(`錯誤：${err.message}`);
@@ -58,11 +91,12 @@ export default function Exam() {
             }
         };
 
-        // Always initialize exam to clear previous answers
         initExam();
-    }, [navigate, location.state, state.status, dispatch]);
+    }, [navigate, location.state, dispatch, EXAM_DURATION_SEC]);
 
-    // Timer
+    // ============================================================
+    // 倒數計時器
+    // ============================================================
     useEffect(() => {
         if (isLoading || state.status !== 'active') return;
 
@@ -70,7 +104,6 @@ export default function Exam() {
             setTimeLeft(prev => {
                 if (prev <= 1) {
                     clearInterval(timer);
-                    handleSubmit(); // Auto submit
                     return 0;
                 }
                 return prev - 1;
@@ -80,12 +113,59 @@ export default function Exam() {
         return () => clearInterval(timer);
     }, [isLoading, state.status]);
 
-    const handleAnswer = (option) => {
+    // 時間到自動交卷
+    useEffect(() => {
+        if (timeLeft === 0 && !isLoading && state.status === 'active') {
+            handleSubmit();
+        }
+    }, [timeLeft, isLoading, state.status, handleSubmit]);
+
+    // ============================================================
+    // 切換網頁/跳出去偵測
+    // ============================================================
+    useEffect(() => {
+        if (isLoading || state.status !== 'active') return;
+
+        const handleVisibilityChange = () => {
+            if (!document.hidden) {
+                // 使用者切回來了
+                if (hasWarned.current) {
+                    // 第二次切回：直接交卷
+                    handleSubmit();
+                } else {
+                    // 第一次切回：彈出警告
+                    hasWarned.current = true;
+                    const shouldSubmit = window.confirm(
+                        '⚠️ 偵測到您離開了考試頁面！\n\n' +
+                        '點擊「確定」將立即交卷。\n' +
+                        '點擊「取消」繼續考試（再次離開將直接交卷）。'
+                    );
+                    if (shouldSubmit) {
+                        handleSubmit();
+                    }
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [isLoading, state.status, handleSubmit]);
+
+    // ============================================================
+    // 作答 & 標記
+    // ============================================================
+    const handleAnswer = (optionIndex) => {
         const question = state.questions[currentQuestionIndex];
         if (!question) return;
+
+        // 如果有 SHUFFLE 映射，轉回原始代號
+        const originalLabel = question.optionMap
+            ? question.optionMap[optionIndex]
+            : ['A', 'B', 'C', 'D'][optionIndex];
+
         dispatch({
             type: 'ANSWER_QUESTION',
-            payload: { questionId: question.id, answer: option }
+            payload: { questionId: question.id, answer: originalLabel }
         });
     };
 
@@ -98,39 +178,9 @@ export default function Exam() {
         });
     };
 
-    const handleSubmit = async () => {
-        // Calculate Score Locally or Prepare for GAS
-        // For GAS, we send answers.
-
-        // Check if confirming?
-        // In this flow, we go to Result page directly?
-        // Or we submit here?
-        // Let's submit here.
-
-        // navigate to Result
-        // Result page will handle the submission effect or we do it here.
-        // Better to do it in context or here.
-
-        // For simplicity, let's just calculate score locally if we have answers (from options check?),
-        // but the sheet has '解答' (Answer). 
-        // The requirement says "類似 Google Sheets 的「題目」工作表隨機撈取 N 題（不包含解答欄位）".
-        // Wait!! The Frontend does NOT have the answers!
-        // "不包含解答欄位" -> Browser doesn't verify.
-        // "成績計算：將作答結果傳送到 Google Apps Script 計算成績"
-        // So we MUST submit to GAS to get the score.
-
-        const resultData = {
-            id: state.user.id,
-            name: state.user.name,
-            subject: state.user.subject,
-            answers: state.answers, // Keyed by ID
-            timeLeft,
-            totalTimeTaken: EXAM_DURATION_SEC - timeLeft
-        };
-
-        navigate('/result', { state: { resultData } });
-    };
-
+    // ============================================================
+    // 渲染
+    // ============================================================
     const formatTime = (sec) => {
         const m = Math.floor(sec / 60);
         const s = sec % 60;
@@ -180,7 +230,7 @@ export default function Exam() {
             <main className="flex-1 p-4 max-w-4xl mx-auto w-full relative">
                 {showMap ? (
                     <QuestionMap
-                        totalQuestions={state.questions.length}
+                        questions={state.questions}
                         answers={state.answers}
                         flags={state.flags}
                         currentQuestionIndex={currentQuestionIndex}
@@ -202,7 +252,7 @@ export default function Exam() {
                             if (currentQuestionIndex < state.questions.length - 1) {
                                 setCurrentQuestionIndex(prev => prev + 1);
                             } else {
-                                setShowMap(true); // Review before submit
+                                setShowMap(true);
                             }
                         }}
                         onPrev={() => {
@@ -214,7 +264,7 @@ export default function Exam() {
                 )}
             </main>
 
-            {/* Submit Button (only visible in Map or Last Question?) */}
+            {/* Submit Button */}
             {showMap && (
                 <div className="p-4 flex justify-center sticky bottom-0 bg-gray-100/90 backdrop-blur-sm">
                     <button

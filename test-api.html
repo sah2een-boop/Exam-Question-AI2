@@ -12,6 +12,16 @@
             padding: 20px;
         }
 
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            font-family: monospace;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
         button {
             padding: 10px 20px;
             font-size: 16px;
@@ -28,30 +38,35 @@
             font-family: monospace;
         }
 
-        .error {
-            color: red;
-        }
-
-        .success {
-            color: green;
-        }
+        .error { color: red; }
+        .success { color: green; }
     </style>
 </head>
 
 <body>
     <h1>Google Apps Script API 測試</h1>
-    <p>API URL: <code id="apiUrl"></code></p>
+    <p>請輸入您的 Google Apps Script 部署 URL：</p>
+    <input type="text" id="apiInput" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec">
 
-    <button onclick="testAPI()">測試 API 連線</button>
-    <button onclick="testDirect()">直接開啟 API (新分頁)</button>
+    <div>
+        <button onclick="testAPI()">測試 API 連線</button>
+        <button onclick="testDirect()">直接開啟 API (新分頁)</button>
+    </div>
 
     <div id="result"></div>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbxNSQgNfQuClkxkrEDhZFcjJjLxWG2ExkXlZrabTHIYikxW9LVdq--ezEBhiiUqjFDP/exec';
-        document.getElementById('apiUrl').textContent = API_URL;
+        function getApiUrl() {
+            return document.getElementById('apiInput').value.trim();
+        }
 
         async function testAPI() {
+            const API_URL = getApiUrl();
+            if (!API_URL) {
+                alert('請先輸入 API URL');
+                return;
+            }
+
             const result = document.getElementById('result');
             result.innerHTML = '正在測試...\n';
 
@@ -75,7 +90,7 @@
                 }
             } catch (error) {
                 result.innerHTML += `❌ 連線失敗: ${error.message}\n`;
-                result.innerHTML += `\n這通常表示:\n`;
+                result.innerHTML += `\n這通常表示：\n`;
                 result.innerHTML += `1. CORS 設定錯誤 (部署時未選「所有人」)\n`;
                 result.innerHTML += `2. 網址錯誤\n`;
                 result.innerHTML += `3. Apps Script 未正確部署\n`;
@@ -84,6 +99,11 @@
         }
 
         function testDirect() {
+            const API_URL = getApiUrl();
+            if (!API_URL) {
+                alert('請先輸入 API URL');
+                return;
+            }
             window.open(`${API_URL}?action=getQuestions`, '_blank');
         }
     </script>

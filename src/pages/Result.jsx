@@ -10,16 +10,15 @@ export default function Result() {
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const hasSubmitted = useRef(false); // Prevent duplicate submissions
+    const hasSubmitted = useRef(false);
 
     useEffect(() => {
         const data = location.state?.resultData;
         if (!data) {
             setLoading(false);
-            return; // Should redirect
+            return;
         }
 
-        // Prevent duplicate submission
         if (hasSubmitted.current) {
             return;
         }
@@ -61,25 +60,24 @@ export default function Result() {
         );
     }
 
-    const showScore = state.user?.showScore;
-
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-            <div className="bg-white max-w-lg w-full rounded-2xl shadow-xl overflow-hidden">
+            <div className="bg-white max-w-2xl w-full rounded-2xl shadow-xl overflow-hidden">
                 <div className="bg-green-600 p-8 text-center">
                     <CheckCircle className="w-20 h-20 text-white mx-auto mb-4" />
                     <h1 className="text-3xl font-bold text-white">測驗完成！</h1>
                 </div>
 
-                <div className="p-8 text-center">
-                    <p className="text-gray-600 text-lg mb-6">
+                <div className="p-8">
+                    <p className="text-gray-600 text-lg mb-6 text-center">
                         感謝您的參與， <span className="font-semibold text-gray-900">{state.user?.name}</span>.
                         <br />您的成績已紀錄。
                     </p>
 
-                    {showScore && result ? (
+                    {result && (
                         <>
-                            <div className="bg-gray-50 rounded-xl p-6 mb-6 border border-gray-100">
+                            {/* 分數顯示 */}
+                            <div className="bg-gray-50 rounded-xl p-6 mb-6 border border-gray-100 text-center">
                                 <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">您的分數</span>
                                 <div className="text-5xl font-black text-blue-600 mt-2">
                                     {result.score} <span className="text-2xl text-gray-400 font-normal">/ 100</span>
@@ -89,9 +87,12 @@ export default function Result() {
                                 </div>
                             </div>
 
+                            {/* 錯題表格 */}
                             {result.wrongAnswers && result.wrongAnswers.length > 0 && (
                                 <div className="bg-red-50 rounded-xl p-6 mb-6 border border-red-100 text-left">
-                                    <h3 className="text-sm font-semibold text-red-700 mb-4">答錯的題目</h3>
+                                    <h3 className="text-sm font-semibold text-red-700 mb-4">
+                                        答錯的題目（共 {result.wrongAnswers.length} 題）
+                                    </h3>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm">
                                             <thead>
@@ -107,7 +108,7 @@ export default function Result() {
                                                     <tr key={idx} className="border-b border-red-100 last:border-0">
                                                         <td className="py-3 px-2 font-medium text-red-600">{item.questionId}</td>
                                                         <td className="py-3 px-2 text-gray-700">{item.question}</td>
-                                                        <td className="py-3 px-2 text-red-600">{item.userAnswer || '未作答'}</td>
+                                                        <td className="py-3 px-2 text-red-600 font-medium">{item.userAnswer || '未作答'}</td>
                                                         <td className="py-3 px-2 text-green-600 font-medium">{item.correctAnswer}</td>
                                                     </tr>
                                                 ))}
@@ -116,16 +117,18 @@ export default function Result() {
                                     </div>
                                 </div>
                             )}
+
+                            {result.wrongAnswers && result.wrongAnswers.length === 0 && (
+                                <div className="bg-green-50 rounded-xl p-4 mb-6 text-green-800 text-center font-medium">
+                                    🎉 恭喜！全部答對！
+                                </div>
+                            )}
                         </>
-                    ) : (
-                        <div className="bg-yellow-50 rounded-xl p-4 mb-8 text-yellow-800 text-sm">
-                            本次測驗不顯示分數。
-                        </div>
                     )}
 
                     <Link
                         to="/"
-                        className="inline-block w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors"
+                        className="inline-block w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors text-center"
                     >
                         返回首頁
                     </Link>

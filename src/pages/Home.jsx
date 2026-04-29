@@ -1,15 +1,35 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// ============================================================
+// 出題者設定：每科的題數與考試時間（分鐘）
+// 修改這裡即可調整各科設定
+// ============================================================
+const SUBJECT_CONFIG = {
+    '眼球解剖生理學與倫理法規': { questionCount: 50, duration: 60 },
+    '視覺光學':                 { questionCount: 50, duration: 60 },
+    '視光學':                   { questionCount: 50, duration: 60 },
+    '隱形眼鏡學與配鏡學':       { questionCount: 50, duration: 60 },
+    '低視力學':                 { questionCount: 50, duration: 60 },
+};
+
 export default function Home() {
-  const [formData, setFormData] = useState({ id: '', name: '', subject: '', showScore: false });
+  const [formData, setFormData] = useState({ id: '', name: '', subject: '' });
   const navigate = useNavigate();
 
   const handleStart = (e) => {
     e.preventDefault();
     if (!formData.id || !formData.name || !formData.subject) return;
-    // Save to local storage or context (TODO)
-    navigate('/exam', { state: formData });
+
+    const config = SUBJECT_CONFIG[formData.subject] || { questionCount: 50, duration: 60 };
+
+    navigate('/exam', {
+      state: {
+        ...formData,
+        questionCount: config.questionCount,
+        duration: config.duration,
+      }
+    });
   };
 
   return (
@@ -46,24 +66,10 @@ export default function Home() {
               onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
             >
               <option value="">請選擇科目</option>
-              <option value="眼球解剖生理學與倫理法規">眼球解剖生理學與倫理法規</option>
-              <option value="視覺光學">視覺光學</option>
-              <option value="視光學">視光學</option>
-              <option value="隱形眼鏡學與配鏡學">隱形眼鏡學與配鏡學</option>
-              <option value="低視力學">低視力學</option>
+              {Object.keys(SUBJECT_CONFIG).map((subj) => (
+                <option key={subj} value={subj}>{subj}</option>
+              ))}
             </select>
-          </div>
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="showScore"
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              checked={formData.showScore}
-              onChange={(e) => setFormData({ ...formData, showScore: e.target.checked })}
-            />
-            <label htmlFor="showScore" className="ml-2 block text-sm text-gray-900">
-              考試後顯示分數？
-            </label>
           </div>
           <button
             type="submit"

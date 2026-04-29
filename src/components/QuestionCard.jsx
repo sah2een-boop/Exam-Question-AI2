@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Triangle, Circle, Square, Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import React from 'react';
+import { Triangle, Circle, Square, ChevronRight, ChevronLeft } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function QuestionCard({
@@ -13,10 +13,6 @@ export default function QuestionCard({
     onNext,
     onPrev
 }) {
-    // Memoize shuffled options if we were doing it locally, 
-    // but better to have options prepared in the question object itself from context to persist order.
-    // Assuming question.options is already shuffled or fixed as per config.
-
     const options = question.options || [];
 
     return (
@@ -32,21 +28,21 @@ export default function QuestionCard({
                     <button
                         onClick={() => onFlag(flag === 'triangle' ? null : 'triangle')}
                         className={clsx("p-2 rounded-full hover:bg-yellow-100 transition-colors", flag === 'triangle' ? 'bg-yellow-100 ring-2 ring-yellow-400' : '')}
-                        title="Mark with Triangle"
+                        title="標記三角形"
                     >
                         <Triangle className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                     </button>
                     <button
                         onClick={() => onFlag(flag === 'circle' ? null : 'circle')}
                         className={clsx("p-2 rounded-full hover:bg-red-100 transition-colors", flag === 'circle' ? 'bg-red-100 ring-2 ring-red-400' : '')}
-                        title="Mark with Circle"
+                        title="標記圓形"
                     >
                         <Circle className="w-5 h-5 text-red-500 fill-red-500" />
                     </button>
                     <button
                         onClick={() => onFlag(flag === 'square' ? null : 'square')}
                         className={clsx("p-2 rounded-full hover:bg-blue-100 transition-colors", flag === 'square' ? 'bg-blue-100 ring-2 ring-blue-400' : '')}
-                        title="Mark with Square"
+                        title="標記方形"
                     >
                         <Square className="w-5 h-5 text-blue-500 fill-blue-500" />
                     </button>
@@ -63,20 +59,26 @@ export default function QuestionCard({
                     <div className="mb-6 flex justify-center">
                         <img
                             src={question.image}
-                            alt="Question Reference"
+                            alt="題目附圖"
                             className="max-h-64 object-contain rounded-lg border"
+                            onError={(e) => { e.target.style.display = 'none'; }}
                         />
                     </div>
                 )}
 
-                {/* Options */}
+                {/* Options — onAnswer 傳遞 index，由 Exam.jsx 轉換為 A/B/C/D */}
                 <div className="grid grid-cols-1 gap-4">
                     {options.map((opt, idx) => {
-                        const isSelected = selectedAnswer === opt;
+                        // 判斷是否被選中：比對代號
+                        const currentLabel = question.optionMap
+                            ? question.optionMap[idx]
+                            : ['A', 'B', 'C', 'D'][idx];
+                        const isSelected = selectedAnswer === currentLabel;
+
                         return (
                             <button
                                 key={idx}
-                                onClick={() => onAnswer(opt)}
+                                onClick={() => onAnswer(idx)}
                                 className={clsx(
                                     "text-left p-4 rounded-lg border-2 transition-all flex items-center group relative",
                                     isSelected
