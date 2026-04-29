@@ -121,7 +121,22 @@ export default function Exam() {
     }, [timeLeft, isLoading, state.status, handleSubmit]);
 
     // ============================================================
-    // 切換網頁/跳出去偵測
+    // 防止關閉分頁 / 輸入其他網址離開（beforeunload）
+    // ============================================================
+    useEffect(() => {
+        if (isLoading || state.status !== 'active') return;
+
+        const handleBeforeUnload = (e) => {
+            e.preventDefault();
+            // 瀏覽器會顯示系統預設的「確定要離開嗎？」對話框
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isLoading, state.status]);
+
+    // ============================================================
+    // 切換分頁 / Alt+Tab 偵測（visibilitychange）
     // ============================================================
     useEffect(() => {
         if (isLoading || state.status !== 'active') return;
