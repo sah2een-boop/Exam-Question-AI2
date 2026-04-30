@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useExam } from '../context/ExamContext';
 import { fetchQuestions, submitExam } from '../services/api';
@@ -17,7 +17,7 @@ export default function Exam() {
     const [timeLeft, setTimeLeft] = useState(0);
     const [showMap, setShowMap] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const hasWarned = useRef(false); // 是否已經警告過切換
+
 
     // 從 Home.jsx 傳入的考試時間（分鐘），預設 60
     const duration = location.state?.duration || 60;
@@ -143,21 +143,14 @@ export default function Exam() {
 
         const handleVisibilityChange = () => {
             if (!document.hidden) {
-                // 使用者切回來了
-                if (hasWarned.current) {
-                    // 第二次切回：直接交卷
+                // 使用者切回來了，每次都彈出警告
+                const shouldSubmit = window.confirm(
+                    '⚠️ 偵測到您離開了考試頁面！\n\n' +
+                    '點擊「確定」將立即交卷。\n' +
+                    '點擊「取消」繼續考試。'
+                );
+                if (shouldSubmit) {
                     handleSubmit();
-                } else {
-                    // 第一次切回：彈出警告
-                    hasWarned.current = true;
-                    const shouldSubmit = window.confirm(
-                        '⚠️ 偵測到您離開了考試頁面！\n\n' +
-                        '點擊「確定」將立即交卷。\n' +
-                        '點擊「取消」繼續考試（再次離開將直接交卷）。'
-                    );
-                    if (shouldSubmit) {
-                        handleSubmit();
-                    }
                 }
             }
         };

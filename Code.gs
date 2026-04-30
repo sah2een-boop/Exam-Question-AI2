@@ -1,5 +1,4 @@
 const SPREADSHEET_ID = '1mGv3N3uXqxv3Je1ZvR_JCCGuluvaM8wkvz2K7ryATzY';
-const SHEET_ANSWERS = '回答';
 
 function getSpreadsheet() {
   if (SPREADSHEET_ID) {
@@ -17,10 +16,10 @@ function getSpreadsheet() {
 // ============================================================
 
 function doGet(e) {
-  const action = e && e.parameter ? e.parameter.action : null;
+  var action = e && e.parameter ? e.parameter.action : null;
   if (action === 'getQuestions') {
-    const subject = e.parameter.subject || '眼球解剖生理學與倫理法規';
-    const num = e.parameter.num ? parseInt(e.parameter.num, 10) : 0;
+    var subject = e.parameter.subject || '眼球解剖生理學與倫理法規';
+    var num = e.parameter.num ? parseInt(e.parameter.num, 10) : 0;
     return getQuestions(subject, num);
   }
   return ContentService.createTextOutput(JSON.stringify({status: 'ok'})).setMimeType(ContentService.MimeType.JSON);
@@ -47,15 +46,12 @@ function convertImageUrl(url) {
   var str = String(url).trim();
   if (!str) return null;
 
-  // Google Drive: https://drive.google.com/file/d/FILE_ID/view?...
   var match = str.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
   if (match) return 'https://lh3.googleusercontent.com/d/' + match[1];
 
-  // Google Drive: https://drive.google.com/open?id=FILE_ID
   match = str.match(/drive\.google\.com.*[?&]id=([^&]+)/);
   if (match) return 'https://lh3.googleusercontent.com/d/' + match[1];
 
-  // 已經是直接的圖片 URL
   if (str.startsWith('http')) return str;
 
   return null;
@@ -88,7 +84,6 @@ function getQuestions(subject, num) {
   var idxImg = headers.indexOf('圖片');
 
   var allQuestions = sheetData.slice(1).map(function(row, i) {
-    // 圖片處理
     var imageUrl = null;
     if (idxImg > -1) {
       var cellValue = row[idxImg];
@@ -110,7 +105,6 @@ function getQuestions(subject, num) {
     };
   });
 
-  // 如果有指定題數，取前 N 題（按工作表順序）
   var questions = (num > 0 && num < allQuestions.length)
     ? allQuestions.slice(0, num)
     : allQuestions;
@@ -126,7 +120,6 @@ function submitExam(data) {
   var ss = getSpreadsheet();
   var subject = data.subject || '眼球解剖生理學與倫理法規';
   var qSheet = ss.getSheetByName(subject);
-  var aSheet = ss.getSheetByName(SHEET_ANSWERS);
 
   if (!qSheet) {
     return ContentService.createTextOutput(
@@ -151,12 +144,11 @@ function submitExam(data) {
     allQuestionIds.push(qId);
   });
 
-  // 計分：分母 = 前端傳來的 totalQuestions（考生收到的題數）
+  // 計分
   var totalQuestions = data.totalQuestions || qData.length - 1;
   var correctCount = 0;
   var wrongAnswers = [];
 
-  // 比對每一題（用 A/B/C/D 代號比對）
   Object.keys(data.answers).forEach(function(qId) {
     var userAns = String(data.answers[qId]).trim();
     var correctAns = answerKey[qId];
@@ -173,35 +165,9 @@ function submitExam(data) {
   });
 
   var score = Math.round((correctCount / totalQuestions) * 100);
-  var timestamp = new Date();
 
-  // ---- 更新「回答」工作表 ----
-  var aData = aSheet.getDataRange().getValues();
-  var userRowIndex = -1;
-
-  for (var i = 1; i < aData.length; i++) {
-    if (String(aData[i][0]) === String(data.id) && String(aData[i][7]) === String(subject)) {
-      userRowIndex = i + 1;
-      break;
-    }
-  }
-
-  if (userRowIndex > -1) {
-    var vals = aSheet.getRange(userRowIndex, 1, 1, 8).getValues()[0];
-    var count = Number(vals[2]) + 1;
-    var maxScore = Math.max(Number(vals[4]), score);
-
-    aSheet.getRange(userRowIndex, 3).setValue(count);
-    aSheet.getRange(userRowIndex, 4).setValue(score);
-    aSheet.getRange(userRowIndex, 5).setValue(maxScore);
-    aSheet.getRange(userRowIndex, 7).setValue(timestamp);
-    aSheet.getRange(userRowIndex, 8).setValue(subject);
-  } else {
-    aSheet.appendRow([data.id, data.name, 1, score, score, score, timestamp, subject]);
-  }
-
-  // ---- 記錄錯題到「{科目}_錯題」工作表 ----
-  recordWrongAnswers(ss, subject, data, wrongAnswers, score, allQuestionIds);
+  // ---- 記錄到「{科目}_錯題」分頁（含成績 + 錯題） ----
+  recordExamResult(ss, subject, data, score, wrongAnswers, allQuestionIds);
 
   return ContentService.createTextOutput(JSON.stringify({
     score: score,
@@ -212,32 +178,49 @@ function submitExam(data) {
 }
 
 // ============================================================
-// 錯題記錄
+// 記錄考試結果（成績 + 錯題，每次考試新增一列）
 // ============================================================
 
-function recordWrongAnswers(ss, subject, data, wrongAnswers, score, allQuestionIds) {
+function recordExamResult(ss, subject, data, score, wrongAnswers, allQuestionIds) {
   var sheetName = subject + '_錯題';
   var sheet = ss.getSheetByName(sheetName);
 
   // 首次使用：自動建立工作表並寫入標題列
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
-    var headers = ['學號', '姓名', '時間', '總分'];
+    var headers = ['學號', '姓名', '次數', '分數', '最高分', '時間'];
     allQuestionIds.forEach(function(qId) {
       headers.push('題' + qId);
     });
     sheet.appendRow(headers);
-    // 凍結標題列
     sheet.setFrozenRows(1);
   }
 
-  // 建立錯題 Set，key = questionId, value = 考生的錯誤答案
+  // 計算此學生的次數與最高分
+  var existingData = sheet.getDataRange().getValues();
+  var attemptCount = 0;
+  var historicalMaxScore = 0;
+
+  for (var i = 1; i < existingData.length; i++) {
+    if (String(existingData[i][0]) === String(data.id)) {
+      attemptCount++;
+      var prevScore = Number(existingData[i][3]);
+      if (prevScore > historicalMaxScore) {
+        historicalMaxScore = prevScore;
+      }
+    }
+  }
+
+  var currentAttempt = attemptCount + 1;
+  var maxScore = Math.max(historicalMaxScore, score);
+
+  // 建立錯題 Map
   var wrongMap = {};
   wrongAnswers.forEach(function(w) {
     wrongMap[String(w.questionId)] = w.userAnswer || '未作答';
   });
 
-  // 建立考生作答的題目 Set
+  // 建立已作答 Set
   var answeredSet = {};
   if (data.answers) {
     Object.keys(data.answers).forEach(function(qId) {
@@ -245,17 +228,14 @@ function recordWrongAnswers(ss, subject, data, wrongAnswers, score, allQuestionI
     });
   }
 
-  // 寫入一列
-  var row = [data.id, data.name, new Date(), score];
+  // 組裝資料列
+  var row = [data.id, data.name, currentAttempt, score, maxScore, new Date()];
   allQuestionIds.forEach(function(qId) {
     if (wrongMap[qId]) {
-      // 答錯：填寫考生的錯誤答案
       row.push(wrongMap[qId]);
     } else if (answeredSet[qId]) {
-      // 答對：留空
       row.push('');
     } else {
-      // 未作答（這題不在考生收到的題目中，或跳過未答）
       row.push('-');
     }
   });
