@@ -83,7 +83,6 @@ export default function Exam() {
                 });
                 setTimeLeft(EXAM_DURATION_SEC);
                 setIsLoading(false);
-                hasWarned.current = false;
             } catch (err) {
                 console.error("Failed to load exam", err);
                 alert(`錯誤：${err.message}`);
