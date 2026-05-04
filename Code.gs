@@ -1,4 +1,6 @@
-const SPREADSHEET_ID = '1mGv3N3uXqxv3Je1ZvR_JCCGuluvaM8wkvz2K7ryATzY';
+// ⚠️ 請在 Google Apps Script 編輯器中直接設定您的試算表 ID
+// 如果此腳本是從試算表的「擴充功能 > Apps Script」開啟的，留空即可（會自動取得）
+const SPREADSHEET_ID = '';
 
 function getSpreadsheet() {
   if (SPREADSHEET_ID) {
@@ -131,16 +133,13 @@ function submitExam(data) {
   var headers = qData[0].map(function(h) { return String(h).trim(); });
   var idxId  = headers.indexOf('題號');
   var idxAns = headers.indexOf('解答');
-  var idxQ   = headers.indexOf('題目');
 
   // 建立答案對照表
   var answerKey = {};
-  var questionTexts = {};
   var allQuestionIds = [];
   qData.slice(1).forEach(function(row) {
     var qId = String(row[idxId]);
     answerKey[qId] = String(row[idxAns]).trim();
-    questionTexts[qId] = row[idxQ];
     allQuestionIds.push(qId);
   });
 
@@ -157,7 +156,6 @@ function submitExam(data) {
     } else {
       wrongAnswers.push({
         questionId: qId,
-        question: questionTexts[qId],
         userAnswer: userAns,
         correctAnswer: correctAns
       });

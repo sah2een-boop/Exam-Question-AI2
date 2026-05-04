@@ -59,7 +59,6 @@ export const submitExam = async (resultData) => {
         for (let i = correctCount + 1; i <= totalQuestions; i++) {
             wrongAnswers.push({
                 questionId: i,
-                question: `測試題目 ${i}`,
                 userAnswer: 'B',
                 correctAnswer: 'A'
             });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useExam } from '../context/ExamContext';
 import { submitExam } from '../services/api';
@@ -11,6 +11,27 @@ export default function Result() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const hasSubmitted = useRef(false);
+
+    // 從 resultData 取得題目資料，建立查詢表（用於前端顯示錯題詳情）
+    const questionMap = useMemo(() => {
+        const questions = location.state?.resultData?.questions || [];
+        const map = {};
+        questions.forEach(q => { map[q.id] = q; });
+        return map;
+    }, [location.state]);
+
+    // 將選項代號（A/B/C/D）轉換為選項文字（處理選項打亂的情況）
+    const getOptionText = (questionId, label) => {
+        if (!label) return null;
+        const q = questionMap[questionId];
+        if (!q) return label;
+        const labels = q.optionMap || ['A', 'B', 'C', 'D'];
+        const idx = labels.indexOf(label);
+        if (idx >= 0 && q.options && q.options[idx]) {
+            return `(${label}) ${q.options[idx]}`;
+        }
+        return label;
+    };
 
     useEffect(() => {
         const data = location.state?.resultData;
@@ -26,7 +47,9 @@ export default function Result() {
 
         const postResults = async () => {
             try {
-                const response = await submitExam(data);
+                // 不要把 questions 陣列傳到後端
+                const { questions, ...submitData } = data;
+                const response = await submitExam(submitData);
                 setResult(response);
                 dispatch({ type: 'FINISH_EXAM', payload: { score: response.score } });
             } catch (err) {
@@ -107,9 +130,15 @@ export default function Result() {
                                                 {result.wrongAnswers.map((item, idx) => (
                                                     <tr key={idx} className="border-b border-red-100 last:border-0">
                                                         <td className="py-3 px-2 font-medium text-red-600">{item.questionId}</td>
-                                                        <td className="py-3 px-2 text-gray-700">{item.question}</td>
-                                                        <td className="py-3 px-2 text-red-600 font-medium">{item.userAnswer || '未作答'}</td>
-                                                        <td className="py-3 px-2 text-green-600 font-medium">{item.correctAnswer}</td>
+                                                        <td className="py-3 px-2 text-gray-700">
+                                                            {questionMap[item.questionId]?.question || `題目 ${item.questionId}`}
+                                                        </td>
+                                                        <td className="py-3 px-2 text-red-600 font-medium">
+                                                            {getOptionText(item.questionId, item.userAnswer) || '未作答'}
+                                                        </td>
+                                                        <td className="py-3 px-2 text-green-600 font-medium">
+                                                            {getOptionText(item.questionId, item.correctAnswer)}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>

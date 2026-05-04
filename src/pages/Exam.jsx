@@ -35,6 +35,7 @@ export default function Exam() {
             subject: state.user.subject,
             answers: state.answers,
             totalQuestions: state.questions.length,
+            questions: state.questions,
             timeLeft,
             totalTimeTaken: EXAM_DURATION_SEC - timeLeft
         };

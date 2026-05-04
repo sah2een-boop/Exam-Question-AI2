@@ -1,18 +1,20 @@
 # 驗光師模擬考系統
 
-這是一個基於 React + Google Sheets 的線上考試系統，專為驗光師考試設計，支援多科目測驗、自動計分與成績記錄。
+這是一個基於 React + Google Sheets 的線上模擬考系統，專為驗光師考試設計，支援多科目測驗、自動計分、錯題分析與成績記錄。
 
 ---
 
 ## ✨ 功能特色
 
-- **多科目支援**：支援五個驗光師專業科目
+- **多科目支援**：支援五個驗光師專業科目，可個別設定題數與考試時間
 - **隨機選項**：每次考試選項順序隨機打亂，防止記憶答案位置
-- **即時計時**：內建 60 分鐘倒數計時器
+- **即時計時**：每科可設定獨立的倒數計時器（預設 60 分鐘）
 - **自動評分**：考試結束後自動計算分數
-- **錯題分析**：顯示所有答錯的題目及正確答案
-- **雲端記錄**：所有成績自動儲存至 Google Sheets
-- **成績追蹤**：記錄每位考生的考試次數、最高分、最低分等資訊
+- **錯題分析**：顯示所有答錯的題目、您的答案與正確答案
+- **雲端記錄**：所有成績與錯題記錄自動儲存至 Google Sheets
+- **成績追蹤**：記錄每位考生的考試次數、分數、最高分
+- **防作弊偵測**：切換分頁或離開視窗時會彈出警告
+- **題目標記**：可使用三角形、圓形、方形旗標標記需要複習的題目
 
 ---
 
@@ -50,16 +52,15 @@
    
    - **題號**：題目編號（如 1, 2, 3...）
    - **題目**：題目內容
-   - **A/B/C/D**：四個選項
-   - **解答**：正確答案（必須與選項文字完全一致）
-   - **圖片**：（選填）圖片網址
+   - **A/B/C/D**：四個選項的文字
+   - **解答**：正確答案的代號（A、B、C 或 D）
+   - **圖片**：（選填）圖片網址或 Google Drive 連結
 
-4. **建立成績記錄工作表**
+4. **錯題記錄工作表（自動建立）**
    
-   建立名為 `回答` 的工作表，第一列設定為：
+   系統會在首次考試時**自動建立** `{科目}_錯題` 工作表（例如 `視光學_錯題`），無需手動建立。
    
-   | 學號 | 姓名 | 次數 | 最後分數 | 最高分 | 初次分數 | 時間 | 科目 |
-   |------|------|------|----------|--------|----------|------|------|
+   每次考試會新增一列，記錄：學號、姓名、次數、分數、最高分、時間，以及每題的答錯記錄。
 
 5. **複製試算表 ID**
    
@@ -78,7 +79,8 @@
 2. **貼上程式碼**
    - 刪除預設的 `Code.gs` 內容
    - 將專案中的 `Code.gs` 檔案內容完整複製貼上
-   - 修改第 1 行的 `SPREADSHEET_ID`，填入您的試算表 ID
+   - ⚠️ 如果是從試算表的「擴充功能」開啟的，`SPREADSHEET_ID` 留空即可
+   - 如果是獨立部署，請在第 3 行填入您的試算表 ID
 
 3. **儲存專案**
    - 按 `Ctrl+S` 或點選儲存圖示
@@ -117,12 +119,10 @@
    在專案根目錄建立 `.env` 檔案，內容如下：
    ```env
    VITE_API_URL=您的_GOOGLE_SCRIPT_網址
-   VITE_PASS_THRESHOLD=60
    VITE_SHUFFLE_OPTIONS=true
    ```
    
    - `VITE_API_URL`：貼上步驟 2-6 複製的網址
-   - `VITE_PASS_THRESHOLD`：及格分數（預設 60 分）
    - `VITE_SHUFFLE_OPTIONS`：是否打亂選項順序（`true` 或 `false`）
 
 3. **啟動開發伺服器**
@@ -145,12 +145,11 @@
    - 前往 GitHub 倉庫頁面
    - 點選 **Settings** > **Secrets and variables** > **Actions**
    - 點選 **New repository secret**
-   - 新增以下三個 secrets：
+   - 新增以下 secrets：
      
      | Name | Value | 說明 |
      |------|-------|------|
      | `VITE_API_URL` | 您的 Google Apps Script URL | 完整的 `/exec` 結尾網址 |
-     | `VITE_PASS_THRESHOLD` | `60` | 及格分數 |
      | `VITE_SHUFFLE_OPTIONS` | `true` | 是否隨機排序選項 |
 
 3. **啟用 GitHub Pages**
@@ -182,19 +181,17 @@ npm run build
 
 ## 📖 使用說明
 
-
 ### 考生操作流程
 
 1. **登入**
    - 輸入學號
    - 輸入姓名
    - 選擇考試科目
-   - 勾選「考試後顯示分數」（可選）
    - 點擊「開始考試」
 
 2. **作答**
    - 點選選項進行作答
-   - 可使用旗標標記需要複習的題目
+   - 可使用旗標標記需要複習的題目（三角形 / 圓形 / 方形）
    - 右上角顯示剩餘時間和已作答題數
    - 點選「總覽」查看所有題目的作答狀態
 
@@ -211,10 +208,22 @@ npm run build
    - 在最後一列新增題目資料
 
 2. **查看成績**
-   - 開啟 Google Sheets 的「回答」工作表
-   - 可看到所有考生的成績記錄
+   - 開啟 Google Sheets 的 `{科目}_錯題` 工作表
+   - 可看到所有考生的成績記錄與錯題詳情
 
-3. **更新程式碼**
+3. **調整題數與時間**
+   - 編輯 `src/pages/Home.jsx` 中的 `SUBJECT_CONFIG`：
+   ```javascript
+   const SUBJECT_CONFIG = {
+       '眼球解剖生理學與倫理法規': { questionCount: 50, duration: 60 },
+       '視覺光學':                 { questionCount: 50, duration: 60 },
+       // ...
+   };
+   ```
+   - `questionCount`：每次考試的題數（0 = 全部出題）
+   - `duration`：考試時間（分鐘）
+
+4. **更新 Apps Script 程式碼**
    - 修改 `Code.gs` 後
    - 前往 Apps Script > **部署** > **管理部署**
    - 點選 **編輯**（鉛筆圖示）
@@ -232,23 +241,16 @@ npm run build
 3. Google Sheet 中是否有對應的科目工作表
 4. 瀏覽器 Console (F12) 是否有 CORS 錯誤
 
-### Q2: 考試提交後出現兩筆記錄
-**A:** 這個問題已在最新版本修正，請確保使用最新的 `Code.gs` 和 `Result.jsx`。
+### Q2: 如何修改考試時間或題數？
+**A:** 編輯 `src/pages/Home.jsx` 中的 `SUBJECT_CONFIG`，可為每科設定獨立的 `questionCount`（題數）和 `duration`（考試時間，分鐘）。
 
-### Q3: 總覽頁面顯示的作答狀態不正確
-**A:** 已在最新版本修正，請更新 `QuestionMap.jsx`。
+### Q3: 如何新增或修改科目？
+**A:** 需要同時修改以下兩處：
+1. `src/pages/Home.jsx` - `SUBJECT_CONFIG` 物件中新增科目
+2. Google Sheets - 新增對應名稱的工作表
 
-### Q4: 如何修改考試時間？
-**A:** 編輯 `src/pages/Exam.jsx` 第 11 行：
-```javascript
-const EXAM_DURATION_SEC = 60 * 60; // 改為您要的秒數
-```
-
-### Q5: 如何新增或修改科目？
-**A:** 需要同時修改以下三處：
-1. `src/pages/Home.jsx` - 科目下拉選單
-2. `Code.gs` - doGet 函數的預設科目
-3. Google Sheets - 新增對應名稱的工作表
+### Q4: 考試期間切換分頁會怎樣？
+**A:** 系統會在考生切回來時彈出警告對話框，考生可以選擇「確定」立即交卷，或「取消」繼續考試。
 
 ---
 
@@ -258,47 +260,54 @@ const EXAM_DURATION_SEC = 60 * 60; // 改為您要的秒數
 Exam Question AI2/
 ├── src/
 │   ├── components/          # React 元件
-│   │   ├── QuestionCard.jsx # 題目卡片
-│   │   └── QuestionMap.jsx  # 題目總覽
+│   │   ├── QuestionCard.jsx # 題目卡片（含選項、標記）
+│   │   └── QuestionMap.jsx  # 題目總覽（作答狀態）
 │   ├── context/
-│   │   └── ExamContext.jsx  # 全域狀態管理
+│   │   └── ExamContext.jsx  # 全域狀態管理（考試資料）
 │   ├── pages/
-│   │   ├── Home.jsx         # 登入頁面
-│   │   ├── Exam.jsx         # 考試頁面
-│   │   └── Result.jsx       # 成績頁面
+│   │   ├── Home.jsx         # 登入頁面（含科目/題數/時間設定）
+│   │   ├── Exam.jsx         # 考試頁面（計時、防作弊）
+│   │   └── Result.jsx       # 成績頁面（分數、錯題表格）
 │   ├── services/
-│   │   └── api.js           # API 服務
-│   └── App.jsx              # 主要路由
+│   │   └── api.js           # API 服務（含開發用 Mock 資料）
+│   ├── App.jsx              # 主要路由
+│   └── main.jsx             # 應用程式進入點
+├── .github/
+│   └── workflows/
+│       └── deploy.yml       # GitHub Pages 自動部署
 ├── Code.gs                  # Google Apps Script 程式碼
-├── .env                     # 環境變數設定
-└── README.md               # 本文件
+├── .env.example             # 環境變數範本
+└── README.md                # 本文件
 ```
 
 ---
 
 ## 🛠️ 技術棧
 
-- **前端框架**：React 18 + Vite
-- **路由**：React Router v6
-- **樣式**：Tailwind CSS
+- **前端框架**：React 19 + Vite 7
+- **路由**：React Router v7
+- **樣式**：Tailwind CSS 4
 - **圖示**：Lucide React
 - **後端**：Google Apps Script
 - **資料庫**：Google Sheets
+- **部署**：GitHub Pages + GitHub Actions
 
 ---
 
 ## 📝 測試資料
 
-專案中的 `QUESTIONS.md` 提供了 10 題眼球解剖學的測試題目，可直接複製到 Google Sheets 進行測試。
+專案中的 `QUESTIONS.md` 及各科 `QUESTIONS_*.md` 提供了測試題目，可直接複製到 Google Sheets 進行測試。
 
 ---
 
 ## 🔒 安全性說明
 
 - Google Apps Script 部署為「所有人」可存取是為了避免 CORS 問題
+- API 不會回傳題目原文，錯題詳情由前端本地資料顯示
 - 所有資料儲存在您自己的 Google Sheet 中
-- 建議定期備份 Google Sheet 資料
-- 不建議在公開環境使用，僅供內部測試使用
+- **建議將 Google Sheet 設為「限制存取」**，不要設為「知道連結的人可檢視」
+- `.env` 檔案已加入 `.gitignore`，不會被提交到版本控制
+- 本系統適合作為學校內部模擬考使用，不建議用於正式考試
 
 ---
 
